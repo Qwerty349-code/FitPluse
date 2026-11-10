@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>FitPluse — калории и БЖУ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Норма калорий и БЖУ по формуле Миффлина — Сан Жеора и дневной трекер">
+<meta name="theme-color" content="#0e1017">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico?v=22" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=22">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=22">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FitPluse">
+
+<style>
+:root{
+  --bg:#0e1017; --surface:#171a24; --s2:#202432; --line:#2a2f42;
+  --text:#eef0f8; --muted:#8c93ae; --accent:#8b9cff; --accent2:#b79bff; --ink:#0e1017;
+  --p:#7aa2ff; --f:#ffc65c; --c:#6fe3b0; --err:#ff8a8a; --r:20px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg);color-scheme:dark}
+body{
+  margin:0;min-height:100vh;color:var(--text);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:
+    radial-gradient(520px 320px at 85% -80px,rgba(139,156,255,.20),transparent 70%),
+    radial-gradient(420px 300px at -10% 18%,rgba(183,155,255,.10),transparent 70%),
+    var(--bg);
+  background-attachment:fixed;
+  padding:max(14px,env(safe-area-inset-top)) 16px calc(92px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto}
+header{padding:10px 4px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{margin:0;font-size:1.7rem;line-height:1.1;letter-spacing:-.03em}
+header p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.date{font-size:.85rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:6px 12px;border-radius:99px;white-space:nowrap}
+
+.card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,0) 60%),var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px}
+.card h2{margin:0 0 14px;font-size:1.05rem;letter-spacing:-.01em}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+label,.lbl{display:block;font-size:.82rem;color:var(--muted);margin:0 0 6px}
+.field{margin-bottom:14px}
+
+input[type=number],input[type=text],select{
+  width:100%;height:50px;padding:0 14px;font:inherit;font-size:1.05rem;color:var(--text);
+  background:var(--s2);border:1.5px solid var(--line);border-radius:14px;outline:none;
+  appearance:none;-webkit-appearance:none;transition:border-color .15s,box-shadow .15s;
+}
+.row4 input{padding:0 10px;height:46px;font-size:1rem}
+select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%238c93ae' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;
+}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(139,156,255,.15)}
+input.bad{border-color:var(--err)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--s2);border:1.5px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+.seg label{margin:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;text-align:center;padding:11px 0;border-radius:10px;color:var(--muted);font-weight:600;cursor:pointer;transition:background .15s,color .15s}
+.seg input:checked+span{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--ink)}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+
+button{font:inherit;cursor:pointer}
+.btn{width:100%;height:54px;border:0;border-radius:16px;color:var(--ink);font-weight:700;font-size:1.05rem;margin-top:4px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 24px -8px rgba(139,156,255,.55)}
+.btn:active{transform:scale(.985)}
+.btn.sm{height:46px;font-size:.95rem;margin-top:10px}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--line);box-shadow:none;height:46px;font-size:.95rem;font-weight:600;margin:0 0 14px}
+.link{background:none;border:0;color:var(--muted);font-size:.85rem;padding:8px 4px;text-decoration:underline}
+.err{color:var(--err);font-size:.88rem;margin:8px 0 0;min-height:1.2em}
+
+/* Вкладки */
+.view{display:none}
+.view.on{display:block}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(14,16,23,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line)}
+nav div{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+nav button{height:48px;border-radius:14px;border:0;background:transparent;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+nav button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{background:var(--s2);color:var(--text)}
+nav button.on svg{stroke:var(--accent)}
+
+/* Результат расчёта */
+#result{display:none}#result.show{display:block}
+.kcal{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.kcal b{font-size:3.3rem;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.kcal span,.sub{color:var(--muted)}
+.sub{font-size:.9rem;margin:8px 0 0}
+.stack{display:flex;gap:3px;height:12px;margin:18px 0 6px}
+.stack i{display:block;height:100%;border-radius:99px;transition:width .5s}
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.m{background:var(--s2);border-radius:16px;padding:12px;position:relative;overflow:hidden}
+.m::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--mc)}
+.m .n{font-size:.8rem;color:var(--muted)}
+.m .g{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.m .g small{font-size:.78rem;font-weight:500;color:var(--muted)}
+.m .k{font-size:.76rem;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--s2);border-radius:16px;padding:12px}
+.stat .n{font-size:.8rem;color:var(--muted)}
+.stat .v{font-size:1.2rem;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.note{font-size:.8rem;color:var(--muted);margin:14px 2px 0}
+.warn{color:var(--f)}
+
+/* Сегодня */
+.ringbox{display:flex;align-items:center;gap:18px}
+.ring{position:relative;width:132px;height:132px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:11;stroke-linecap:round}
+.ring .bg{stroke:var(--s2)}
+.ring .fg{stroke:url(#g);transition:stroke-dashoffset .6s cubic-bezier(.3,.7,.2,1)}
+.ring.over .fg{stroke:var(--f)}
+.ring .ct{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .ct b{font-size:1.7rem;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.ring .ct span{font-size:.75rem;color:var(--muted)}
+.left{flex:1;min-width:0}
+.left .big{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+.left .small{font-size:.85rem;color:var(--muted);margin-top:2px}
+.bars{margin-top:18px;display:grid;gap:14px}
+.bar .top{display:flex;justify-content:space-between;font-size:.88rem;margin-bottom:6px}
+.bar .top span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}
+.track{height:10px;border-radius:99px;background:var(--s2);overflow:hidden}
+.track i{display:block;height:100%;width:0;border-radius:99px;background:var(--bc);transition:width .6s cubic-bezier(.3,.7,.2,1)}
+.track i.over{background:var(--f);box-shadow:0 0 12px rgba(255,198,92,.5)}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0;padding-top:0}
+.log .t{flex:1;min-width:0}
+.log .t b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log .t small{color:var(--muted);font-size:.8rem}
+.log .kc{font-weight:700;font-variant-numeric:tabular-nums}
+.log .x{width:34px;height:34px;border-radius:10px;border:0;background:var(--s2);color:var(--muted);font-size:1.1rem;line-height:1}
+.empty{color:var(--muted);font-size:.92rem;margin:0}
+
+.ad-slot{margin:0 0 14px;text-align:center;overflow:hidden;max-width:100%}
+.ad-slot:empty{display:none}
+#ad-center{min-height:250px;display:flex;justify-content:center;align-items:flex-start;overflow:visible}  /* баннер 300x250 */   /* пока реклама не подключена, блок не виден и не занимает места */
+#install{display:none}#install.show{display:block}
+.hint{font-size:.85rem;color:var(--muted);text-align:center;margin:6px 0 0}
+@media (max-width:360px){.ringbox{flex-direction:column;align-items:stretch}.ring{margin:0 auto}}
+.pick{display:grid;gap:8px;margin-top:10px}
+.pick button{width:100%;text-align:left;padding:10px 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--s2);color:var(--text)}
+.pick button small{display:block;color:var(--muted);margin-top:2px}
+
+.sugwrap{position:relative}
+.sug{display:block;position:absolute;left:0;right:0;top:calc(100% - 2px);z-index:20;margin:0;padding:4px;max-height:300px;overflow:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px -12px rgba(0,0,0,.75)}
+.sug:empty{display:none}
+.sug button{border:0;background:transparent;border-radius:10px;padding:10px}
+.sug button.on,.sug button:active{background:var(--s2)}
+.sug button small{font-size:.78rem}
+a.btn{display:block;text-decoration:none;text-align:center;line-height:46px}
+#toast{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;max-width:488px;margin:0 auto;padding:12px 14px;
+  border-radius:14px;background:var(--s2);border:1px solid var(--line);box-shadow:0 14px 34px -10px rgba(0,0,0,.7);text-align:center;font-size:.92rem;display:none}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand img{width:46px;height:46px;border-radius:12px;flex:none;box-shadow:0 6px 18px -6px rgba(0,0,0,.6)}
+/* Скрытие возможного значка/виджета Netlify (подставляется хостингом, а не этим кодом) */
+[id*="netlify" i],[class*="netlify" i],[data-netlify-badge],
+a[href*="netlify.com"],iframe[src*="netlify"],netlify-badge,
+#__netlify-badge,.netlify-badge,#netlify-badge{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <img src="icon-192.png?v=22" alt="" width="46" height="46">
+      <div>
+        <h1>FitPluse</h1>
+        <p>Калории и БЖУ · Миффлин — Сан Жеор</p>
+      </div>
+    </div>
+    <div class="date" id="today"></div>
+  </header>
+
+  <!-- РЕКЛАМА-ВЕРХ -->
+  <!-- Вставьте код рекламы внутрь контейнера ниже (между <div ...> и </div>), он находится перед калькулятором. -->
+  <div class="ad-slot" id="ad-top"></div>
+
+  <button class="btn ghost" id="install" type="button">Установить как приложение</button>
+  <a class="btn ghost" id="apkBtn" href="app.apk" download="fitpluse.apk" style="display:none">Скачать приложение (APK)</a>
+  <p class="hint" id="apkHint" style="display:none;margin:-6px 0 14px">Для Android. Приложение обновляется вместе с сайтом само.</p>
+
+  <!-- ===== Вкладка «Расчёт» ===== -->
+  <main class="view on" id="v-calc">
+    <form class="card" id="form" novalidate>
+      <h2>Ваши данные</h2>
+      <div class="field">
+        <span class="lbl">Пол</span>
+        <div class="seg">
+          <label><input type="radio" name="sex" value="m" checked><span>Мужчина</span></label>
+          <label><input type="radio" name="sex" value="f"><span>Женщина</span></label>
+        </div>
+      </div>
+
+      <div class="row3 field">
+        <div><label for="age">Возраст</label><input id="age" type="number" inputmode="numeric" min="14" max="100" placeholder="30"></div>
+        <div><label for="height">Рост, см</label><input id="height" type="number" inputmode="numeric" min="120" max="230" placeholder="175"></div>
+        <div><label for="weight">Вес, кг</label><input id="weight" type="number" inputmode="decimal" step="0.1" min="30" max="250" placeholder="70"></div>
+      </div>
+
+      <div class="field">
+        <label for="activity">Род занятий и активность</label>
+        <select id="activity">
+          <option value="1.2">Сидячий образ жизни — офис, почти без тренировок (×1,2)</option>
+          <option value="1.375" selected>Лёгкая активность — прогулки, 1–2 лёгкие тренировки (×1,375)</option>
+          <option value="1.55">Умеренная активность — подвижная работа, 2–3 тренировки (×1,55)</option>
+          <option value="1.725">Силовые тренировки / армрестлинг / зал 3–5 раз в неделю (×1,725)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="goal">Цель</label>
+        <select id="goal">
+          <option value="lose">Снизить вес (−15% калорий)</option>
+          <option value="keep" selected>Удерживать вес</option>
+          <option value="gain">Набрать вес (+12% калорий)</option>
+        </select>
+      </div>
+
+      <button class="btn" type="submit">Рассчитать</button>
+      <p class="err" id="err" role="alert"></p>
+    </form>
+
+    <!-- РЕКЛАМА-ЦЕНТР -->
+    <!-- Баннер Adsterra 300x250. Скрипты должны стоять прямо здесь, в самой разметке: баннер рисуется на месте скрипта. -->
+    <div class="ad-slot" id="ad-center">
+<script>
+  atOptions = {
+    'key' : '22a0e3a71af6fb49dda85b21ce5de916',
+    'format' : 'iframe',
+    'height' : 250,
+    'width' : 300,
+    'params' : {}
+  };
+</script>
+<script src="https://bicea.org/22/22a0e3a71af6fb49dda85b21ce5de916"></script>
+    </div>
+
+    <section id="result" aria-live="polite">
+      <div class="card">
+        <div class="kcal"><b id="rKcal">0</b><span>ккал в день</span></div>
+        <p class="sub" id="rSub"></p>
+        <div class="stack" aria-hidden="true">
+          <i id="bP" style="background:var(--p);width:0"></i>
+          <i id="bF" style="background:var(--f);width:0"></i>
+          <i id="bC" style="background:var(--c);width:0"></i>
+        </div>
+        <div class="macros">
+          <div class="m" style="--mc:var(--p)"><div class="n">Белки</div><div class="g"><span id="gP">0</span> <small>г</small></div><div class="k" id="kP"></div></div>
+          <div class="m" style="--mc:var(--f)"><div class="n">Жиры</div><div class="g"><span id="gF">0</span> <small>г</small></div><div class="k" id="kF"></div></div>
+          <div class="m" style="--mc:var(--c)"><div class="n">Углеводы</div><div class="g"><span id="gC">0</span> <small>г</small></div><div class="k" id="kC"></div></div>
+        </div>
+        <button class="btn sm" id="toTrack" type="button">Вести дневник питания</button>
+      </div>
+
+      <div class="card">
+        <div class="stats">
+          <div class="stat"><div class="n">Базовый обмен (BMR)</div><div class="v"><span id="rBmr">0</span> ккал</div></div>
+          <div class="stat"><div class="n">Поддержание (TDEE)</div><div class="v"><span id="rTdee">0</span> ккал</div></div>
+        </div>
+        <p class="note" id="rCalc"></p>
+        <p class="note" id="rWarn"></p>
+        <p class="note">Белки 1,8–2 г/кг веса, жиры 1 г/кг, углеводы — остаток калорий (1 г белка или углеводов = 4 ккал, 1 г жира = 9 ккал). Это ориентир, а не медицинская рекомендация: при заболеваниях проконсультируйтесь с врачом.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Вкладка «Сегодня» ===== -->
+  <main class="view" id="v-track">
+    <div class="card" id="noGoal">
+      <h2>Сначала рассчитайте норму</h2>
+      <p class="empty">Введите данные на вкладке «Расчёт» — здесь появятся шкалы прогресса по калориям, белкам, жирам и углеводам.</p>
+      <button class="btn sm" id="toCalc" type="button">Перейти к расчёту</button>
+    </div>
+
+    <div id="trackBox" style="display:none">
+      <div class="card">
+        <div class="ringbox">
+          <div class="ring" id="ring">
+            <svg viewBox="0 0 132 132" aria-hidden="true">
+              <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b9cff"/><stop offset="1" stop-color="#b79bff"/></linearGradient></defs>
+              <circle class="bg" cx="66" cy="66" r="54"/>
+              <circle class="fg" id="ringFg" cx="66" cy="66" r="54" stroke-dasharray="339.29" stroke-dashoffset="339.29"/>
+            </svg>
+            <div class="ct"><b id="tPct">0%</b><span>нормы</span></div>
+          </div>
+          <div class="left">
+            <div class="big" id="tEaten">0 ккал</div>
+            <div class="small" id="tLeft"></div>
+          </div>
+        </div>
+        <div class="bars">
+          <div class="bar" style="--bc:var(--p)"><div class="top"><span>Белки</span><span id="tP"></span></div><div class="track"><i id="pbP"></i></div></div>
+          <div class="bar" style="--bc:var(--f)"><div class="top"><span>Жиры</span><span id="tF"></span></div><div class="track"><i id="pbF"></i></div></div>
+          <div class="bar" style="--bc:var(--c)"><div class="top"><span>Углеводы</span><span id="tC"></span></div><div class="track"><i id="pbC"></i></div></div>
+        </div>
+      </div>
+
+      <form class="card" id="addForm" novalidate>
+        <h2>Добавить приём пищи</h2>
+        <div class="field sugwrap"><label for="aName">Название</label><input id="aName" type="text" maxlength="60" autocomplete="off" placeholder="Например, банан" role="combobox" aria-autocomplete="list"><div class="pick sug" id="aPick" role="listbox"></div></div>
+        <div class="field"><label for="aG">Вес порции, г (для пересчёта данных из интернета)</label><input id="aG" type="number" inputmode="decimal" min="1" placeholder="100"></div>
+        <div class="row4">
+          <div><label for="aK">Ккал</label><input id="aK" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+          <div><label for="aP">Б, г</label><input id="aP" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+          <div><label for="aF">Ж, г</label><input id="aF" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+          <div><label for="aC">У, г</label><input id="aC" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        </div>
+        <p class="note" style="margin-top:8px">Не знаете БЖУ? Начните вводить название: под полем появятся подсказки из справочника и из интернета (USDA и Open Food Facts). Выберите вариант, проверьте значения и нажмите «Добавить». Если ккал не указаны, они считаются из БЖУ.</p>
+        <p class="note" id="aStatus" aria-live="polite"></p>
+        <button class="btn ghost" id="findBtn" type="button">Найти БЖУ по названию</button>
+        <button class="btn sm" type="submit">Добавить</button>
+        <p class="err" id="aErr" role="alert"></p>
+      </form>
+
+      <div class="card">
+        <h2>Съедено сегодня</h2>
+        <ul class="log" id="log"></ul>
+        <p class="empty" id="logEmpty">Пока ничего не добавлено.</p>
+        <button class="link" id="resetDay" type="button">Очистить день</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- РЕКЛАМА-НИЗ -->
+  <!-- Вставьте код рекламы внутрь контейнера ниже: он стоит в самом низу страницы, над нижней панелью вкладок. -->
+  <div class="ad-slot" id="ad-bottom"></div>
+
+  <div id="toast" role="status"></div>
+  <p class="hint" id="ver">Версия 22</p>
+  <p class="hint" id="iosHint" style="display:none">На iPhone: «Поделиться» → «На экран Домой».</p>
+</div>
+
+<nav aria-label="Разделы">
+  <div>
+    <button type="button" data-tab="calc" class="on">
+      <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 13h.01M12 13h.01M15 13h.01M9 17h.01M12 17h.01M15 17h.01"/></svg>Расчёт
+    </button>
+    <button type="button" data-tab="track">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Сегодня
+    </button>
+  </div>
+</nav>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var fmt = new Intl.NumberFormat('ru-RU');
+
+  /* ---------- Хранилище (localStorage) ---------- */
+  var K_PROFILE = 'kcal-profile-v2', K_LOG = 'kcal-log-v2', K_TAB = 'kcal-tab-v2', K_OLD = 'kcal-calc-v1';
+  var store = {
+    get: function(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+    set: function(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  };
+  function dayKey(){
+    var d = new Date(), m = d.getMonth()+1, dd = d.getDate();
+    return d.getFullYear() + '-' + (m<10?'0':'') + m + '-' + (dd<10?'0':'') + dd;
+  }
+
+  /* ---------- Профиль ---------- */
+  function readProfile(){
+    return {
+      sex: document.querySelector('input[name=sex]:checked').value,
+      age: $('age').value, height: $('height').value, weight: $('weight').value,
+      activity: $('activity').value, goal: $('goal').value
+    };
+  }
+  function saveProfile(){ store.set(K_PROFILE, readProfile()); }
+  function fillProfile(p){
+    if (!p) return;
+    var r = document.querySelector('input[name=sex][value="' + p.sex + '"]');
+    if (r) r.checked = true;
+    $('age').value = p.age || ''; $('height').value = p.height || ''; $('weight').value = p.weight || '';
+    if (p.activity){
+      var sel = $('activity');
+      sel.value = String(p.activity);
+      if (sel.value !== String(p.activity)){           // значение из старой версии — берём ближайшее
+        var a = parseFloat(p.activity), best = null, diff = 9;
+        Array.prototype.forEach.call(sel.options, function(o){
+          var df = Math.abs(parseFloat(o.value) - a);
+          if (df < diff){ diff = df; best = o; }
+        });
+        if (best) best.selected = true;
+      }
+    }
+    if (p.goal) $('goal').value = p.goal;
+  }
+
+  /* ---------- Расчёт ---------- */
+  function num(p){
+    return { sex:p.sex, age:parseFloat(p.age), height:parseFloat(p.height), weight:parseFloat(p.weight),
+             activity:parseFloat(p.activity), goal:p.goal };
+  }
+  function check(d){
+    var rules = [['age',d.age,14,100,'Возраст: от 14 до 100 лет'],
+                 ['height',d.height,120,230,'Рост: от 120 до 230 см'],
+                 ['weight',d.weight,30,250,'Вес: от 30 до 250 кг']];
+    for (var i=0;i<rules.length;i++){
+      var r = rules[i];
+      if (isNaN(r[1]) || r[1]<r[2] || r[1]>r[3]) return { id:r[0], msg:r[4] };
+    }
+    return null;
+  }
+  function calc(d){
+    var w = d.weight;
+    // Миффлин — Сан Жеор (все значения берутся из формы):
+    //   мужчины: BMR = 10*вес + 6.25*рост − 5*возраст + 5
+    //   женщины: BMR = 10*вес + 6.25*рост − 5*возраст − 161
+    var bmr = 10*w + 6.25*d.height - 5*d.age + (d.sex==='m' ? 5 : -161);
+    var tdee = bmr * d.activity;                              // TDEE = BMR × коэффициент активности (1,2 – 1,725)
+
+    // Цель: сброс −15%, поддержка 0%, набор +12%
+    var target = tdee * { lose:0.85, keep:1, gain:1.12 }[d.goal];
+    var floor = d.sex==='m' ? 1500 : 1200, low = target < floor;   // безопасный минимум калорий
+    if (low) target = floor;
+
+    // БЖУ от веса конкретного человека
+    var protein = { lose:2.0, keep:1.8, gain:1.9 }[d.goal] * w;     // г: 1,8–2,0 на кг
+    var fat = 1.0 * w;                                              // г: 1,0 на кг
+    var carbs = (target - protein*4 - fat*9) / 4;                   // остаток калорий: 1 г Б/У = 4 ккал, 1 г Ж = 9 ккал
+    var over = false;
+    if (carbs < 0){                                                 // белки и жиры уже «съели» всю норму
+      carbs = 0; target = protein*4 + fat*9; over = true;
+    }
+    return { bmr:bmr, tdee:tdee, target:target, protein:protein, fat:fat, carbs:carbs,
+             low:low, floor:floor, over:over, fewCarbs:(carbs < 50) };
+  }
+  function targets(){
+    var d = num(readProfile());
+    return check(d) ? null : { d:d, r:calc(d) };
+  }
+
+  function renderResult(t){
+    var r = t.r, d = t.d;
+    var gP=Math.round(r.protein), gF=Math.round(r.fat), gC=Math.round(r.carbs);
+    var kP=gP*4, kF=gF*9, kC=gC*4, sum=(kP+kF+kC)||1;
+    $('rKcal').textContent = fmt.format(Math.round(r.target));
+    $('rSub').textContent = { lose:'Для плавного снижения веса', keep:'Для удержания текущего веса', gain:'Для набора веса' }[d.goal];
+    $('gP').textContent=gP; $('gF').textContent=gF; $('gC').textContent=gC;
+    $('kP').textContent = fmt.format(kP)+' ккал · '+Math.round(kP/sum*100)+'%';
+    $('kF').textContent = fmt.format(kF)+' ккал · '+Math.round(kF/sum*100)+'%';
+    $('kC').textContent = fmt.format(kC)+' ккал · '+Math.round(kC/sum*100)+'%';
+    $('bP').style.width = (kP/sum*100)+'%';
+    $('bF').style.width = (kF/sum*100)+'%';
+    $('bC').style.width = (kC/sum*100)+'%';
+    $('rBmr').textContent = fmt.format(Math.round(r.bmr));
+    $('rTdee').textContent = fmt.format(Math.round(r.tdee));
+    var w = $('rWarn');
+    w.className = 'note' + ((r.low || r.over || r.fewCarbs) ? ' warn' : '');
+    w.textContent =
+      (r.low ? 'Расчётная норма ниже безопасного минимума, поэтому показано '+r.floor+' ккал. Не уходите в жёсткий дефицит без врача. ' : '') +
+      (r.over ? 'Белки и жиры при вашем весе уже покрывают всю норму, поэтому калории подняты до '+fmt.format(Math.round(r.target))+' ккал, углеводов 0 г. ' :
+       (r.fewCarbs ? 'Углеводов остаётся мало: белки и жиры считаются от веса, а калорий немного. Подумайте о менее жёстком дефиците. ' : ''));
+    var c = function(x){ return String(x).replace('.', ','); };
+    $('rCalc').textContent = 'BMR = 10×' + c(d.weight) + ' + 6,25×' + c(d.height) + ' − 5×' + c(d.age) + (d.sex==='m' ? ' + 5' : ' − 161') +
+      ' = ' + fmt.format(Math.round(r.bmr)) + ' ккал. TDEE = ' + fmt.format(Math.round(r.bmr)) + ' × ' + c(d.activity) +
+      ' = ' + fmt.format(Math.round(r.tdee)) + ' ккал.';
+    $('result').classList.add('show');
+  }
+
+  $('form').addEventListener('submit', function(e){
+    e.preventDefault();
+    ['age','height','weight'].forEach(function(id){ $(id).classList.remove('bad'); });
+    var bad = check(num(readProfile()));
+    $('err').textContent = bad ? bad.msg : '';
+    if (bad){ $(bad.id).classList.add('bad'); $(bad.id).focus(); $('result').classList.remove('show'); return; }
+    saveProfile();
+    renderResult(targets());
+    $('result').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+  // Данные сохраняются сразу при вводе, не только по кнопке
+  function live(){
+    saveProfile();
+    var t = targets();                      // null, пока данные не заполнены корректно
+    if (t){
+      $('err').textContent = '';
+      ['age','height','weight'].forEach(function(id){ $(id).classList.remove('bad'); });
+      renderResult(t);
+    } else {
+      $('result').classList.remove('show');
+    }
+  }
+  $('form').addEventListener('input', live);
+  $('form').addEventListener('change', live);
+
+  /* ---------- Дневник ---------- */
+  function loadLog(){
+    var l = store.get(K_LOG), today = dayKey();
+    if (!l || l.date !== today || !Array.isArray(l.items)) l = { date:today, items:[] };
+    return l;
+  }
+  function saveLog(l){ store.set(K_LOG, l); }
+
+  function setBar(id, val, goal, label){
+    var pct = goal > 0 ? val/goal*100 : 0, el = $('pb'+id);
+    el.style.width = Math.min(100, pct) + '%';
+    el.className = pct > 100 ? 'over' : '';
+    $('t'+id).textContent = Math.round(val) + ' / ' + Math.round(goal) + ' г';
+  }
+
+  function renderTrack(){
+    var t = targets();
+    $('noGoal').style.display = t ? 'none' : 'block';
+    $('trackBox').style.display = t ? 'block' : 'none';
+    if (!t) return;
+
+    var log = loadLog(), p=0, f=0, c=0, k=0;
+    log.items.forEach(function(i){ p+=i.p; f+=i.f; c+=i.c; k+=i.k; });
+    var goal = t.r.target, pct = k/goal*100, left = Math.round(goal - k);
+
+    $('tPct').textContent = Math.round(pct) + '%';
+    $('ringFg').style.strokeDashoffset = 339.29 * (1 - Math.min(1, pct/100));
+    $('ring').className = 'ring' + (pct > 100 ? ' over' : '');
+    $('tEaten').textContent = fmt.format(Math.round(k)) + ' ккал';
+    $('tLeft').textContent = left >= 0
+      ? 'Осталось ' + fmt.format(left) + ' из ' + fmt.format(Math.round(goal))
+      : 'Выше нормы на ' + fmt.format(-left) + ' (норма ' + fmt.format(Math.round(goal)) + ')';
+    setBar('P', p, t.r.protein); setBar('F', f, t.r.fat); setBar('C', c, t.r.carbs);
+
+    var ul = $('log'); ul.innerHTML = '';
+    log.items.forEach(function(i, idx){
+      var li = document.createElement('li');
+      var box = document.createElement('div'); box.className = 't';
+      var b = document.createElement('b'); b.textContent = i.n || 'Приём пищи';
+      var s = document.createElement('small'); s.textContent = 'Б ' + Math.round(i.p) + ' · Ж ' + Math.round(i.f) + ' · У ' + Math.round(i.c);
+      box.appendChild(b); box.appendChild(s);
+      var kc = document.createElement('span'); kc.className = 'kc'; kc.textContent = Math.round(i.k) + ' ккал';
+      var x = document.createElement('button'); x.className = 'x'; x.type = 'button'; x.textContent = '×';
+      x.setAttribute('aria-label', 'Удалить'); x.dataset.i = idx;
+      li.appendChild(box); li.appendChild(kc); li.appendChild(x); ul.appendChild(li);
+    });
+    $('logEmpty').style.display = log.items.length ? 'none' : 'block';
+    $('resetDay').style.display = log.items.length ? 'inline-block' : 'none';
+  }
+
+  /* ---------- Данные из интернета (Open Food Facts) ---------- */
+  function setStatus(t, warn){ var e = $('aStatus'); e.textContent = t; e.className = 'note' + (warn ? ' warn' : ''); }
+  function fill(n, g, k, p, f, c){
+    if (n) $('aName').value = n;
+    if (g) $('aG').value = Math.round(g);
+    $('aK').value = Math.round(k); $('aP').value = Math.round(p*10)/10; $('aF').value = Math.round(f*10)/10; $('aC').value = Math.round(c*10)/10;
+  }
+
+  // Поиск по названию: Open Food Facts (значения на 100 г). Сначала новый поиск, при сбое — старый.
+  function normItem(x){
+    var n = x.nutriments || {}, name = x.product_name_ru || x.product_name || '';
+    if (Array.isArray(name)) name = name[0];
+    var p = +n['proteins_100g'] || 0, f = +n['fat_100g'] || 0, c = +n['carbohydrates_100g'] || 0;
+    var k = n['energy-kcal_100g'];
+    if (k == null && n['energy_100g'] != null) k = n['energy_100g'] / 4.184;   // если есть только кДж
+    if (k == null && (p || f || c)) k = p*4 + f*9 + c*4;
+    if (!name || k == null || isNaN(+k)) return null;
+    var br = x.brands; if (Array.isArray(br)) br = br[0];
+    return { name:String(name), brand: br ? String(br).split(',')[0] : '', k:+k, p:p, f:f, c:c };
+  }
+  // Ранжирование: название продукта должно совпадать с запросом, а не просто содержать слово в составе
+  function words(t){ return String(t).toLowerCase().replace(/ё/g, 'е').split(/[^a-zа-я0-9]+/).filter(Boolean); }
+  function rank(name, q, partial){
+    var qw = words(q), nw = words(name);
+    if (!qw.length || !nw.length) return 0;
+    var total = 0;
+    for (var i = 0; i < qw.length; i++){
+      var best = 0, t = qw[i];
+      for (var j = 0; j < nw.length; j++){
+        var w = nw[j], sc = 0;
+        if (w === t) sc = 100;                                                              // банан = банан
+        else if (w.indexOf(t) === 0 && w.length - t.length <= 3) sc = 80;                   // бананы, банана
+        else if (w.length >= 3 && t.indexOf(w) === 0 && t.length - w.length <= 3) sc = 80;  // запрос «бананы», в базе «банан»
+        else if (w.indexOf(t) === 0) sc = 25;                                               // банановый (вкус, а не сам продукт)
+        if (partial && i === qw.length - 1 && sc < 80 && w.indexOf(t) === 0) sc = 80;           // слово ещё набирается: «куриная гр» → «грудка»
+        if (sc && j === 0) sc += 15;                                                        // совпадение в начале названия
+        if (sc && j > 0) sc -= 25;                                                          // «печенье с бананом» — это не банан
+        best = Math.max(best, sc);
+      }
+      if (best <= 0) return 0;
+      total += best;
+    }
+    return total / qw.length - Math.min(20, Math.max(0, nw.length - qw.length) * 4);       // короткие названия точнее
+  }
+  /* Справочник распространённых продуктов (на 100 г): название, ккал, белки, жиры, углеводы, синонимы.
+     Значения взяты из типовых таблиц состава продуктов и приблизительны. Их можно править прямо здесь. */
+  var FOODS = [
+    ['Банан',96,1.5,0.2,21.8,'бананы'],['Яблоко',47,0.4,0.4,9.8,'яблоки'],['Апельсин',43,0.9,0.2,8.1,'апельсины'],
+    ['Груша',42,0.4,0.3,10.9,'груши'],['Виноград',65,0.6,0.2,16.8],['Мандарин',38,0.8,0.2,7.5,'мандарины'],
+    ['Клубника',33,0.8,0.4,7.5],['Киви',47,1.0,0.6,10.3],['Авокадо',160,2.0,14.7,8.5],
+    ['Картофель сырой',77,2.0,0.4,16.3,'картошка'],['Картофель варёный',82,2.0,0.4,16.7,'картошка варёная'],
+    ['Морковь',32,1.3,0.1,6.9],['Помидор',20,1.1,0.2,3.7,'томат|томаты|помидоры'],['Огурец',15,0.8,0.1,2.8,'огурцы'],
+    ['Капуста белокочанная',28,1.8,0.1,4.7],['Лук репчатый',41,1.4,0,8.2],['Свёкла',43,1.5,0.1,8.8],
+    ['Перец болгарский',27,1.3,0,5.3],['Брокколи',34,2.8,0.4,6.6],
+    ['Гречка варёная',110,4.2,1.1,21.3,'гречневая каша|греча'],['Гречка сухая',313,12.6,3.3,62.1,'греча|гречневая крупа'],
+    ['Рис варёный',116,2.2,0.5,24.9],['Рис сухой',344,6.7,0.7,78.9],['Овсянка на воде',88,3.0,1.7,15.0,'овсяная каша|каша овсяная'],
+    ['Овсяные хлопья',352,12.3,6.1,61.8,'геркулес|овсянка сухая'],['Макароны варёные',112,3.5,0.4,23.2,'паста варёная'],
+    ['Куриная грудка сырая',113,23.6,1.9,0.4,'курица сырая|филе куриное'],['Куриная грудка варёная',137,29.8,1.8,0.5,'курица варёная'],
+    ['Говядина',187,18.9,12.4,0],['Свинина',259,16.0,21.6,0],['Лосось',208,20.0,13.6,0,'сёмга|семга'],['Треска',69,16.0,0.6,0],
+    ['Яйцо куриное',157,12.7,11.5,0.7,'яйца|яйцо'],['Молоко 3,2%',59,2.9,3.2,4.7],['Кефир 2,5%',53,2.9,2.5,4.0],
+    ['Творог 5%',121,17.2,5.0,1.8],['Творог 9%',159,16.7,9.0,2.0],['Творог обезжиренный',71,16.5,0.2,1.3],
+    ['Сметана 20%',206,2.8,20.0,3.2],['Сыр российский',364,23.0,29.5,0],['Масло сливочное',748,0.5,82.5,0.8],
+    ['Масло подсолнечное',899,0,99.9,0],['Хлеб пшеничный',242,8.1,1.0,48.8],['Сахар',399,0,0,99.8],['Мёд',329,0.8,0,81.5,'мед'],
+    ['Миндаль',609,18.6,53.7,13.0],['Грецкий орех',654,15.2,65.2,7.0,'орехи грецкие'],['Арахис',551,26.3,45.2,9.7]
+  ].map(function(r){
+    return { name:r[0], k:r[1], p:r[2], f:r[3], c:r[4], brand:'', src:'справочник', alias:(r[5] ? r[5].split('|') : []) };
+  });
+  function localSearch(q){
+    return FOODS.map(function(it){
+      var sc = rank(it.name, q, true);
+      it.alias.forEach(function(a){ sc = Math.max(sc, rank(a, q, true) - 5); });
+      return { it:it, sc:sc };
+    }).filter(function(x){ return x.sc > 0; })
+      .sort(function(a, b){ return b.sc - a.sc; })
+      .slice(0, 5).map(function(x){ return x.it; });
+  }
+  function mergeItems(local, usda, off){
+    var seen = {}, out = [];
+    local.slice(0, usda.length || off.length ? 3 : 5)
+      .concat(usda.slice(0, 3))
+      .concat(off.slice(0, 3).map(function(it){ it.src = 'Open Food Facts'; return it; }))
+      .forEach(function(it){
+        var k = it.name.toLowerCase();
+        if (!seen[k]){ seen[k] = 1; out.push(it); }
+      });
+    return out.slice(0, 8);
+  }
+  var activeIdx = -1;
+  function pick(it){
+    var g = parseFloat($('aG').value) || 100, m = g / 100;
+    fill(it.pickName || it.name, g, it.k*m, it.p*m, it.f*m, it.c*m);
+    $('aPick').innerHTML = ''; activeIdx = -1;
+    setStatus('Подставлено для ' + Math.round(g) + ' г (' + it.src + '). Проверьте значения и нажмите «Добавить».');
+  }
+  function paint(items){
+    var box = $('aPick'); box.innerHTML = ''; activeIdx = -1;
+    items.forEach(function(it){
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'option');
+      b.textContent = it.name + (it.brand ? ' — ' + it.brand : '');
+      var sm = document.createElement('small');
+      sm.textContent = Math.round(it.k) + ' ккал · Б ' + Math.round(it.p) + ' · Ж ' + Math.round(it.f) + ' · У ' + Math.round(it.c) + ' на 100 г · ' + it.src + (it.en ? ': ' + it.en : '');
+      b.appendChild(sm);
+      b.addEventListener('click', function(){ pick(it); });
+      box.appendChild(b);
+    });
+  }
+
+  /* ---------- Перевод названий USDA на русский ----------
+     Словарь встроен в страницу: работает без интернета и без лимитов. Прилагательные записаны в формах
+     «муж.|жен.|ср.|мн.» и согласуются с главным словом. Что в словаре не найдено, остаётся по-английски.
+     Словарь можно дополнять: «английское слово=русское». */
+  var RUDICT = {};
+  ('raw=сырой|сырая|сырое|сырые;cooked=приготовленный|приготовленная|приготовленное|приготовленные;boiled=варёный|варёная|варёное|варёные;' +
+   'roasted=запечённый|запечённая|запечённое|запечённые;baked=запечённый|запечённая|запечённое|запечённые;fried=жареный|жареная|жареное|жареные;' +
+   'canned=консервированный|консервированная|консервированное|консервированные;frozen=замороженный|замороженная|замороженное|замороженные;' +
+   'dried=сушёный|сушёная|сушёное|сушёные;dehydrated=обезвоженный|обезвоженная|обезвоженное|обезвоженные;fresh=свежий|свежая|свежее|свежие;' +
+   'whole=цельный|цельная|цельное|цельные;lowfat=нежирный|нежирная|нежирное|нежирные;nonfat=обезжиренный|обезжиренная|обезжиренное|обезжиренные;' +
+   'skim=обезжиренный|обезжиренная|обезжиренное|обезжиренные;salted=солёный|солёная|солёное|солёные;sweetened=подслащённый|подслащённая|подслащённое|подслащённые;' +
+   'plain=натуральный|натуральная|натуральное|натуральные;enriched=обогащённый|обогащённая|обогащённое|обогащённые;' +
+   'unenriched=необогащённый|необогащённая|необогащённое|необогащённые;lean=постный|постная|постное|постные;regular=обычный|обычная|обычное|обычные;' +
+   'long-grain=длиннозёрный|длиннозёрная|длиннозёрное|длиннозёрные;short-grain=круглозёрный|круглозёрная|круглозёрное|круглозёрные;' +
+   'white=белый|белая|белое|белые;brown=бурый|бурая|бурое|бурые;red=красный|красная|красное|красные;green=зелёный|зелёная|зелёное|зелёные;' +
+   'yellow=жёлтый|жёлтая|жёлтое|жёлтые;ripe=спелый|спелая|спелое|спелые;' +
+   'grilled=на гриле;steamed=на пару;unsalted=без соли;unsweetened=без сахара;or=или;and=и;with=с;without=без;only=только;milkfat=жирности;fat=жир;' +
+   'with skin=с кожей;without skin=без кожи;skin only=только кожа;meat only=только мясо;meat and skin=мясо с кожей;with salt=с солью;without salt=без соли;' +
+   'separable lean only=только постное;separable lean and fat=постное с жиром;meat=мясо;' +
+   'cheese, cottage=творог;sweet potato=батат;sour cream=сметана;milk, whole=молоко цельное;egg, whole=яйцо куриное;' +
+   'chicken, broilers or fryers=курица (бройлер);beef, ground=говяжий фарш;oil, olive=оливковое масло;oil, sunflower=подсолнечное масло;' +
+   'oil, coconut=кокосовое масло;butter=сливочное масло;yogurt, plain=йогурт натуральный;rice, white=рис белый;rice, brown=рис бурый;' +
+   'bread, white=хлеб белый;bread, whole-wheat=хлеб цельнозерновой;buckwheat groats=гречка (крупа);salad or cooking=для салата и жарки;' +
+   'apple=яблоко;banana=банан;orange=апельсин;pear=груша;grape=виноград;strawberry=клубника;kiwifruit=киви;kiwi=киви;mango=манго;pineapple=ананас;' +
+   'peach=персик;plum=слива;cherry=вишня;watermelon=арбуз;melon=дыня;lemon=лимон;lime=лайм;grapefruit=грейпфрут;tangerine=мандарин;mandarin=мандарин;' +
+   'apricot=абрикос;blueberry=черника;raspberry=малина;avocado=авокадо;date=финик;fig=инжир;raisin=изюм;prune=чернослив;coconut=кокос;olive=оливки;' +
+   'potato=картофель;carrot=морковь;tomato=помидор;cucumber=огурец;cabbage=капуста;onion=лук;beet=свёкла;pepper=перец;broccoli=брокколи;spinach=шпинат;' +
+   'lettuce=салат;garlic=чеснок;mushroom=грибы;corn=кукуруза;pea=горох;bean=фасоль;lentil=чечевица;chickpea=нут;soybean=соя;tofu=тофу;' +
+   'cauliflower=цветная капуста;zucchini=цукини;squash=кабачок;pumpkin=тыква;eggplant=баклажан;celery=сельдерей;radish=редис;asparagus=спаржа;' +
+   'rice=рис;buckwheat=гречка;oat=овёс;oatmeal=овсянка;wheat=пшеница;barley=ячмень;quinoa=киноа;pasta=макароны;macaroni=макароны;spaghetti=спагетти;' +
+   'noodle=лапша;bread=хлеб;flour=мука;cereal=хлопья;milk=молоко;yogurt=йогурт;cheese=сыр;cream=сливки;egg=яйцо;chicken=курица;turkey=индейка;' +
+   'beef=говядина;pork=свинина;lamb=баранина;veal=телятина;ham=ветчина;bacon=бекон;sausage=колбаса;fish=рыба;salmon=лосось;tuna=тунец;cod=треска;' +
+   'shrimp=креветки;herring=сельдь;mackerel=скумбрия;trout=форель;sardine=сардины;oil=масло;sunflower=подсолнечное;honey=мёд;sugar=сахар;' +
+   'chocolate=шоколад;peanut=арахис;almond=миндаль;walnut=грецкий орех;hazelnut=фундук;cashew=кешью;seed=семена;nut=орехи;water=вода;juice=сок;' +
+   'coffee=кофе;tea=чай;salt=соль;vinegar=уксус;breast=грудка;thigh=бедро;leg=ножка;wing=крыло;liver=печень;ground=фарш;' +
+   'skin=кожа;flesh=мякоть;or banana powder=или банановый порошок;powder=порошок;cooked without skin=без кожи;dry heat=сухой нагрев;moist heat=влажный нагрев;year round average=среднее за год;' +
+   'atlantic=атлантический|атлантическая|атлантическое|атлантические;farmed=фермерский|фермерская|фермерское|фермерские;wild=дикий|дикая|дикое|дикие').split(';').forEach(function(kv){
+    var i = kv.indexOf('='); RUDICT[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  function ruWord(w){
+    return RUDICT[w] || RUDICT[w.replace(/ies$/, 'y')] || RUDICT[w.replace(/(es|s)$/, '')] || null;
+  }
+  function ruGender(head){
+    var w = head.replace(/\(.*\)/, '').trim().split(/\s+/)[0].toLowerCase();       // «Яйцо куриное» → яйцо
+    if (/(ы|и)$/.test(w)) return 3;                                               // множественное: бананы
+    if (/(а|я)$/.test(w)) return 1;                                               // курица, свёкла
+    if (/(о|е)$/.test(w)) return 2;                                               // яйцо, молоко
+    if (/ь$/.test(w) && w !== 'картофель') return 1;                              // морковь
+    return 0;
+  }
+  function ruPick(v, g){ return v.indexOf('|') > -1 ? (v.split('|')[g] || v.split('|')[0]) : v; }
+  function ruPart(t, g){
+    t = t.toLowerCase().trim();
+    if (RUDICT[t] !== undefined) return ruPick(RUDICT[t], g);
+    if (t.indexOf(',') > -1) return null;
+    var ws = t.split(/\s+/), out = [];
+    for (var i = 0; i < ws.length; i++){
+      var w = ws[i], r;
+      if (/^[\d.,%\/()-]+$/.test(w)) r = w;
+      else { r = ruWord(w); if (r !== null) r = ruPick(r, g); }
+      if (r === null) return null;
+      out.push(r);
+    }
+    return out.join(' ');
+  }
+  function ruName(desc, q){
+    desc = desc.replace(/(\d+)% lean meat \/ (\d+)% fat/i, '$1% постного мяса / $2% жира');   // фарш: 85% мяса / 15% жира
+    var parts = desc.split(/,\s*/), out = [], i = 0, g = 0;
+    while (i < parts.length){
+      var hit = null, n = 1;
+      for (var len = Math.min(3, parts.length - i); len >= 1 && hit === null; len--){
+        var r = ruPart(parts.slice(i, i + len).join(', '), g);
+        if (r !== null){ hit = r; n = len; }
+      }
+      if (hit === null) hit = (i === 0 && /[а-яё]/i.test(q)) ? q.charAt(0).toUpperCase() + q.slice(1).toLowerCase() : parts[i];
+      if (i === 0){ hit = hit.charAt(0).toUpperCase() + hit.slice(1); g = ruGender(hit); }
+      out.push(hit); i += n;
+    }
+    var head = out.shift();
+    return head + (out.length ? ' — ' + out.join(', ') : '');
+  }
+
+  /* ---------- USDA FoodData Central ----------
+     Ключ бесплатный (api.data.gov), виден в коде сайта. Лимит ключа общий для всех посетителей: 1000 запросов в час.
+     Названия в базе английские, поэтому русский запрос сначала переводится (бесплатный сервис MyMemory). */
+  var USDA_KEY = 'K9qB7TKhmgKTtjNhjc9hNPRzCJKhMPNRjCnQNbHF';
+  var trCache = {};
+  function toEnglish(q){
+    if (!/[а-яё]/i.test(q)) return Promise.resolve(q.toLowerCase());
+    var k = q.toLowerCase();
+    if (trCache[k] !== undefined) return Promise.resolve(trCache[k]);
+    return fetch('https://api.mymemory.translated.net/get?langpair=ru|en&q=' + encodeURIComponent(k))
+      .then(function(r){ if (!r.ok) throw new Error('перевод HTTP ' + r.status); return r.json(); })
+      .then(function(d){
+        var t = ((d.responseData && d.responseData.translatedText) || '').toLowerCase().replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        trCache[k] = (d.responseStatus == 200 && t && t.length <= 60) ? t : '';
+        return trCache[k];
+      });
+  }
+  function normUsda(x, q){
+    var v = {};
+    (x.foodNutrients || []).forEach(function(n){
+      var id = n.nutrientId || (n.nutrient && n.nutrient.id);
+      var val = n.value != null ? n.value : n.amount;
+      if (id != null && val != null) v[id] = +val;
+    });
+    var k = v[1008] != null ? v[1008] : (v[2047] != null ? v[2047] : v[2048]);      // ккал (у части продуктов — по Атуотеру)
+    if (k == null || (v[1003] == null && v[1004] == null && v[1005] == null)) return null;
+    return { name:x.description, pickName:q, k:k, p:v[1003] || 0, f:v[1004] || 0, c:v[1005] || 0, brand:'', src:'USDA' };
+  }
+  function usdaFor(q, why){
+    return toEnglish(q).then(function(en){
+      if (!en) return [];
+      var url = 'https://api.nal.usda.gov/fdc/v1/foods/search?api_key=' + USDA_KEY +
+                '&dataType=Foundation,SR%20Legacy&pageSize=25&query=' + encodeURIComponent(en);
+      return fetch(url).then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(d){
+          var all = (d.foods || []).map(function(x){ return normUsda(x, q); }).filter(Boolean)
+                      .filter(function(it){ return !/^babyfood/i.test(it.name); });   // детское питание не нужно
+          var ranked = all.map(function(it){ it.score = rank(it.name, en); return it; })
+                          .filter(function(it){ return it.score > 0; })
+                          .sort(function(a, b){ return b.score - a.score; });
+          var good = ranked.filter(function(it){ return it.score >= 60; });
+          return (good.length ? good : (ranked.length ? ranked : all)).slice(0, 4)
+            .map(function(it){ it.en = it.name; it.name = ruName(it.name, q); return it; });   // переводим на русский
+        });
+    }).catch(function(e){ why.push('USDA: ' + ((e && e.message) || 'ошибка сети')); return []; });
+  }
+
+  var seq = 0, curCtl = null, cache = {};
+  function cancelSearch(){ seq++; if (curCtl){ try { curCtl.abort(); } catch(e){} curCtl = null; } }
+
+  function render(res, q, live){
+    var items = mergeItems(localSearch(q), res.usda || [], res.items);
+    if (!items.length){
+      var limited = res.why.join(' ').indexOf('429') > -1;
+      setStatus(res.answered
+        ? 'Ничего не нашлось по «' + q + '». Попробуйте проще (например, «гречка», «куриная грудка») или введите калории и БЖУ вручную.'
+        : (limited ? 'Слишком много запросов к базе. Подождите минуту и продолжайте ввод.'
+                   : 'Не удалось связаться с базой данных (' + res.why.join('; ') + '). Проверьте интернет или введите БЖУ вручную.'), true);
+      return;
+    }
+    paint(items);
+    setStatus((res.near ? 'Точного совпадения по названию в интернете нет, показаны ближайшие результаты. ' : '') +
+              'Выберите вариант: значения даны на 100 г и пересчитаются на вашу порцию (по умолчанию 100 г).', res.near);
+    if (!live) $('aStatus').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+
+  function lookup(q, live){
+    cancelSearch();
+    var my = seq;
+    $('aErr').textContent = ''; paint(localSearch(q));
+    var key = q.toLowerCase();
+    if (cache[key]){ render(cache[key], q, live); return; }
+    setStatus('Ищу «' + q + '»…');
+    var enc = encodeURIComponent(q), fields = 'product_name,product_name_ru,brands,nutriments';
+    var sources = [
+      { url:'https://search.openfoodfacts.org/search?page_size=50&fields=' + fields + '&q=' + enc, list:function(d){ return d.hits || []; } },
+      { url:'https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=50&fields=' + fields + '&search_terms=' + enc, list:function(d){ return d.products || []; } }
+    ];
+    var answered = false, why = [], loose = [];
+    function ask(i){
+      if (my !== seq || i >= sources.length) return Promise.resolve([]);
+      var ctl = window.AbortController ? new AbortController() : null;
+      curCtl = ctl;
+      var timer = setTimeout(function(){ if (ctl) ctl.abort(); }, 12000);
+      return fetch(sources[i].url, ctl ? { signal: ctl.signal } : {})
+        .then(function(r){ clearTimeout(timer); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(d){
+          if (my !== seq) return [];
+          answered = true;
+          var all = sources[i].list(d).map(normItem).filter(Boolean);
+          if (!loose.length) loose = all.slice(0, 6);
+          var ranked = all.map(function(it){ it.score = rank(it.name, q); return it; })
+                          .filter(function(it){ return it.score > 0; })
+                          .sort(function(a, b){ return b.score - a.score; });
+          var good = ranked.filter(function(it){ return it.score >= 60; });   // убираем «со вкусом…» и «с добавлением…»
+          if (good.length) ranked = good;
+          return ranked.length ? ranked.slice(0, 6) : ask(i + 1);
+        })
+        .catch(function(e){
+          clearTimeout(timer);
+          if (my !== seq) return [];                                           // запрос устарел: пользователь уже ввёл другое
+          why.push(e && e.name === 'AbortError' ? 'долго нет ответа' : (e && e.message) || 'ошибка сети');
+          return ask(i + 1);
+        });
+    }
+    Promise.all([ask(0), usdaFor(q, why)]).then(function(r){
+      if (my !== seq) return;
+      var items = r[0], usda = r[1], near = false;
+      if (!items.length && loose.length){ items = loose; near = true; }
+      var res = { items:items, usda:usda, near:near, answered:answered || usda.length > 0, why:why };
+      if (items.length || usda.length || answered) cache[key] = res;           // сбои сети не запоминаем
+      render(res, q, live);
+    });
+  }
+
+  // Подсказки «как в поисковике»: справочник мгновенно, интернет через 0,7 с после последней буквы
+  var liveTimer = null;
+  $('aName').addEventListener('input', function(){
+    clearTimeout(liveTimer); cancelSearch();
+    var q = this.value.trim();
+    if (!q){ $('aPick').innerHTML = ''; setStatus(''); return; }
+    paint(localSearch(q)); setStatus('');
+    if (q.length >= 3) liveTimer = setTimeout(function(){ lookup(q, true); }, 700);
+  });
+  $('aName').addEventListener('focus', function(){
+    var q = this.value.trim();
+    if (q && !$('aPick').children.length) paint(localSearch(q));
+  });
+  $('aName').addEventListener('keydown', function(e){
+    var btns = $('aPick').children;
+    if (e.key === 'Escape'){ $('aPick').innerHTML = ''; return; }
+    if (!btns.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      activeIdx = (activeIdx + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length;
+      Array.prototype.forEach.call(btns, function(b, i){ b.classList.toggle('on', i === activeIdx); });
+      btns[activeIdx].scrollIntoView({ block:'nearest' });
+    } else if (e.key === 'Enter' && activeIdx >= 0){
+      e.preventDefault(); btns[activeIdx].click();
+    }
+  });
+  document.addEventListener('click', function(e){
+    if (!e.target.closest('.sugwrap')){ $('aPick').innerHTML = ''; activeIdx = -1; }
+  });
+
+  $('findBtn').addEventListener('click', function(){
+    var q = $('aName').value.trim();
+    if (!q){ $('aErr').textContent = 'Сначала введите название блюда или продукта.'; $('aName').focus(); return; }
+    lookup(q);
+  });
+
+  $('addForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var p = parseFloat($('aP').value)||0, f = parseFloat($('aF').value)||0, c = parseFloat($('aC').value)||0;
+    var k = parseFloat($('aK').value);
+    if (isNaN(k)) k = p*4 + f*9 + c*4;
+    if (k <= 0 && p+f+c <= 0){
+      var q = $('aName').value.trim();
+      if (q){ $('aErr').textContent = ''; lookup(q); return; }   // данных нет — ищем в интернете по названию
+      $('aErr').textContent = 'Укажите название, калории или БЖУ.'; return;
+    }
+    $('aErr').textContent = '';
+    var log = loadLog();
+    log.items.push({ n:$('aName').value.trim(), k:k, p:p, f:f, c:c });
+    saveLog(log);
+    $('addForm').reset(); setStatus(''); $('aPick').innerHTML = '';
+    renderTrack();
+  });
+  $('log').addEventListener('click', function(e){
+    var i = e.target.dataset && e.target.dataset.i;
+    if (i === undefined) return;
+    var log = loadLog(); log.items.splice(+i, 1); saveLog(log); renderTrack();
+  });
+  $('resetDay').addEventListener('click', function(){
+    if (confirm('Удалить все записи за сегодня?')){ saveLog({ date:dayKey(), items:[] }); renderTrack(); }
+  });
+
+  /* ---------- Вкладки ---------- */
+  function showTab(name){
+    $('v-calc').classList.toggle('on', name === 'calc');
+    $('v-track').classList.toggle('on', name === 'track');
+    Array.prototype.forEach.call(document.querySelectorAll('nav button'), function(b){
+      b.classList.toggle('on', b.dataset.tab === name);
+    });
+    store.set(K_TAB, name);
+    if (name === 'track') renderTrack();
+    window.scrollTo(0, 0);
+  }
+  document.querySelector('nav').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (b) showTab(b.dataset.tab);
+  });
+  $('toTrack').addEventListener('click', function(){ showTab('track'); });
+  $('toCalc').addEventListener('click', function(){ showTab('calc'); });
+
+  /* ---------- Старт ---------- */
+  $('today').textContent = new Date().toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+
+  var saved = store.get(K_PROFILE) || store.get(K_OLD); // подхватываем данные из первой версии
+  fillProfile(saved);
+  var t0 = targets();
+  if (t0) renderResult(t0);
+  showTab(t0 && store.get(K_TAB) === 'track' ? 'track' : 'calc');
+
+  // Если приложение открыто после полуночи — дневник обнуляется на новый день
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden){
+      $('today').textContent = new Date().toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+      if ($('v-track').classList.contains('on')) renderTrack();
+    }
+  });
+
+  /* ---------- Рекламный блок ----------
+     Обычный режим: если баннера нет, прячем пустое место.
+     Режим проверки: откройте сайт с «?adsdebug=1» в конце адреса (например, https://ваш-сайт.netlify.app/?adsdebug=1) —
+     блок не скрывается, а под ним пишется, что именно происходит с рекламой. */
+  (function(){
+    var s = $('ad-center'); if (!s) return;
+    var debug = /[?&]adsdebug/.test(location.search);
+    var box = null;
+    if (debug){
+      s.style.display = 'flex'; s.style.outline = '1px dashed #8c93ae';
+      box = document.createElement('div');
+      box.id = 'adDbg';
+      box.style.cssText = 'margin:0 0 14px;padding:12px;border-radius:12px;background:#20243a;color:#eef0f8;font-size:.82rem;line-height:1.5';
+      box.textContent = 'Проверка рекламы… подождите несколько секунд.';
+      s.parentNode.insertBefore(box, s.nextSibling);
+    }
+    function upd(){ if (!debug) s.style.display = s.querySelector('iframe') ? '' : 'none'; }
+    setTimeout(function(){
+      upd();
+      if (!debug){ new MutationObserver(upd).observe(s, { childList:true, subtree:true }); return; }
+      var lines = [];
+      lines.push('Настройки баннера (atOptions): ' + (window.atOptions ? 'найдены' : 'НЕ найдены — скрипт не выполнился'));
+      lines.push('Баннер (iframe) в блоке: ' + (s.querySelector('iframe') ? 'ЕСТЬ' : 'нет'));
+      var url = 'https://bicea.org/22/22a0e3a71af6fb49dda85b21ce5de916';
+      var done = function(ok){
+        lines.push('Доступ к серверу рекламы bicea.org: ' + (ok ? 'есть' : 'НЕТ — блокировщик рекламы, DNS-фильтр (AdGuard и т.п.), VPN или сеть режут домен'));
+        if (!s.querySelector('iframe') && ok) lines.push('Сервер доступен, но баннер не пришёл: проверьте в кабинете Adsterra, что сайт одобрен, а блок активен и подходит по формату 300×250.');
+        box.innerHTML = '';
+        lines.forEach(function(t){ var d = document.createElement('div'); d.textContent = t; box.appendChild(d); });
+      };
+      if (window.fetch){
+        fetch(url, { mode:'no-cors', cache:'no-store' }).then(function(){ done(true); }, function(){ done(false); });
+      } else done(false);
+    }, 6000);
+  })();
+
+  /* ---------- Удаление значка Netlify, если хостинг его вставит ---------- */
+  (function(){
+    var re = /netlify/i;
+    function bad(n){
+      if (n.nodeType !== 1) return false;
+      return re.test(n.id || '') || re.test(typeof n.className === 'string' ? n.className : '') ||
+             re.test(n.tagName) || (n.tagName === 'IFRAME' && re.test(n.src || '')) ||
+             (n.tagName === 'A' && re.test(n.getAttribute('href') || ''));
+    }
+    function sweep(root){
+      if (bad(root)) { root.remove(); return; }
+      Array.prototype.forEach.call(root.querySelectorAll ? root.querySelectorAll('*') : [], function(n){
+        if (bad(n) && n.parentNode) n.remove();
+      });
+    }
+    sweep(document.documentElement);
+    new MutationObserver(function(list){
+      list.forEach(function(m){ Array.prototype.forEach.call(m.addedNodes, sweep); });
+    }).observe(document.documentElement, { childList:true, subtree:true });
+  })();
+
+  /* ---------- PWA ---------- */
+  if ('serviceWorker' in navigator && location.protocol !== 'file:'){
+    var hadController = !!navigator.serviceWorker.controller, reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      // Вышла новая версия приложения — один раз перезагружаемся. Сохранённые данные не теряются.
+      if (hadController && !reloading){ reloading = true; try { sessionStorage.setItem('kcal-upd', '1'); } catch(e){} location.reload(); }
+    });
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+  }
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferred = e; $('install').classList.add('show'); });
+  $('install').addEventListener('click', function(){
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function(){ deferred = null; $('install').classList.remove('show'); });
+  });
+  window.addEventListener('appinstalled', function(){ $('install').classList.remove('show'); });
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (isIOS && !standalone) $('iosHint').style.display = 'block';
+
+  // Кнопка «Скачать приложение (APK)»: видна всегда, кроме уже установленного приложения
+  function toast(t){
+    var e = $('toast'); e.textContent = t; e.style.display = 'block';
+    clearTimeout(toast.t); toast.t = setTimeout(function(){ e.style.display = 'none'; }, 5500);
+  }
+  if (!standalone){ $('apkBtn').style.display = 'block'; $('apkHint').style.display = 'block'; }
+  $('apkBtn').addEventListener('click', function(e){
+    e.preventDefault();
+    if (isIOS){ toast('APK работает только на Android. На iPhone: «Поделиться» → «На экран Домой».'); return; }
+    fetch('app.apk', { method:'HEAD', cache:'no-store' }).then(function(r){
+      if (!r.ok) throw 0;
+      var a = document.createElement('a'); a.href = 'app.apk'; a.download = 'fitpluse.apk';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('Скачивание началось. Откройте файл и разрешите установку из этого источника.');
+    }).catch(function(){
+      toast('Файл приложения пока недоступен. Установите через меню браузера: «Добавить на главный экран».');
+    });
+  });
+
+  // После автообновления показываем сообщение
+  try {
+    if (sessionStorage.getItem('kcal-upd')){
+      sessionStorage.removeItem('kcal-upd');
+      var tt = $('toast'); tt.textContent = 'Приложение обновлено · ' + $('ver').textContent; tt.style.display = 'block';
+      setTimeout(function(){ tt.style.display = 'none'; }, 4500);
+    }
+  } catch(e){}
+})();
+</script>
+
+<!-- РЕКЛАМА-SOCIAL-BAR: скрипт Adsterra Social Bar. Должен стоять строго в конце документа, прямо перед </body>, и не внутри контейнера баннера. -->
+<script data-cfasync="false" src="https://bicea.org/14/fb0b8e9c7b076cd3c97e4a3ff288ebcf"></script>
+</body>
+</html>
